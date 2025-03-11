@@ -21,7 +21,7 @@ remote:
 # docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#run
 run:
   prefix: ""
-  name: "it_fr_ch_at_2019_0.95it"
+  name: "it6"
   scenarios:
     enable: false
     file: config/italy_2025/scenarios.yaml

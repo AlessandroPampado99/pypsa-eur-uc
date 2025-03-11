@@ -517,6 +517,13 @@ def prepare_network(
             n, limit_dict=limit_dict, planning_horizons=planning_horizons
         )
 
+    modularity = solve_opts.get("modularity")  # Recupera il dizionario 'modularity'
+    if modularity and modularity.get("enable", False):  # Verifica se 'enable' è True
+      n.lines["s_nom_mod"] = modularity.get("nom_mod", {}).get("AC", 400)  # Imposta il valore di s_nom_mod
+
+        
+        
+
 
 def add_CCL_constraints(
     n: pypsa.Network, config: dict, planning_horizons: str | None
