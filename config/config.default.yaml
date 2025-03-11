@@ -39,6 +39,7 @@ foresight: overnight
 # Wildcard docs in https://pypsa-eur.readthedocs.io/en/latest/wildcards.html
 scenario:
   clusters:
+  - 6
   - 39
   - 128
   - 256
