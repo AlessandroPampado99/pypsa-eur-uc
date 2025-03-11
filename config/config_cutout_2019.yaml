@@ -876,7 +876,7 @@ costs:
 
 # docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#clustering
 clustering:
-  focus_weights: {IT: 0.95}
+  focus_weights: false
   simplify_network:
     to_substations: false
     remove_stubs: true
