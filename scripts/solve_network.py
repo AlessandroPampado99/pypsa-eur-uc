@@ -517,9 +517,9 @@ def prepare_network(
             n, limit_dict=limit_dict, planning_horizons=planning_horizons
         )
 
-    modularity = solve_opts.get("modularity")  # Recupera il dizionario 'modularity'
-    if modularity and modularity.get("enable", False):  # Verifica se 'enable' è True
-      n.lines["s_nom_mod"] = modularity.get("nom_mod", {}).get("AC", 400)  # Imposta il valore di s_nom_mod
+    if solve_opts.get("modularity").get("enable"):
+        modularity = solve_opts["modularity"]
+        n.lines["s_nom_mod"] = modularity["nom_mod"]["AC"]
 
         
         
