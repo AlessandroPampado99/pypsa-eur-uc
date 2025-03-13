@@ -520,6 +520,8 @@ def prepare_network(
     if solve_opts.get("modularity").get("enable"):
         modularity = solve_opts["modularity"]
         n.lines["s_nom_mod"] = modularity["nom_mod"]["AC"]
+        n.generators.loc[n.generators["carrier"] == "CCGT", "p_nom_mod"] = modularity["nom_mod"]["CCGT"]
+        n.links.loc[n.links["carrier"] == "DC", "p_nom_mod"] = modularity["nom_mod"]["DC"]
 
         
         

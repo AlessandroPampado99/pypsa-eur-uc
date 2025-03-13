@@ -923,6 +923,9 @@ solving:
       enable: true
       nom_mod:
         AC: 400
+        CCGT: 400
+        DC: 500
+    
     # io_api: "direct"  # Increases performance but only supported for the highs and gurobi solvers
     # options that go into the optimize function
     track_iterations: false
