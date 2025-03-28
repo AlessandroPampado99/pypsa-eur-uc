@@ -95,7 +95,7 @@ electricity:
   gaslimit_enable: false
   gaslimit: false
   co2limit_enable: false
-  co2limit: 7.75e+7
+  co2limit: 30.8e+7
   co2base: 1.487e+9
 
   operational_reserve:
@@ -109,7 +109,7 @@ electricity:
     H2: 168
 
   extendable_carriers:
-    Generator: [solar, solar-hsat, onwind, offwind-ac, offwind-dc, offwind-float, OCGT, CCGT]
+    Generator: [solar, solar-hsat, onwind, offwind-ac, offwind-dc, offwind-float, nuclear]
     StorageUnit: [] # battery, H2
     Store: [battery, H2]
     Link: [] # H2 pipeline
@@ -118,7 +118,7 @@ electricity:
   custom_powerplants: false
   everywhere_powerplants: []
 
-  conventional_carriers: [nuclear, oil, OCGT, CCGT, coal, lignite, geothermal, biomass]
+  conventional_carriers: [nuclear, OCGT, CCGT, geothermal, biomass]
   renewable_carriers: [solar, solar-hsat, onwind, offwind-ac, offwind-dc, offwind-float, hydro]
 
   estimate_renewable_capacities:
@@ -871,7 +871,7 @@ costs:
     battery inverter: 0.
   emission_prices:
     enable: false
-    co2: 0.
+    co2: 100
     co2_monthly_prices: false
 
 # docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#clustering
@@ -925,6 +925,7 @@ solving:
         AC: 400
         CCGT: 400
         DC: 500
+        nuclear: 300
     
     # io_api: "direct"  # Increases performance but only supported for the highs and gurobi solvers
     # options that go into the optimize function
