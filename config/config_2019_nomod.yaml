@@ -21,7 +21,7 @@ remote:
 # docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#run
 run:
   prefix: ""
-  name: "it6"
+  name: "provacosti"
   scenarios:
     enable: false
     file: config/italy_2025/scenarios.yaml
@@ -43,12 +43,12 @@ scenario:
   # - v1.25
   # - c1.25
   clusters:
-  - 6
+  - 5
   #- 39
   # - 128
   # - 256
   opts:
-  - 6h
+  - 8h
   sector_opts:
   - ''
   planning_horizons:
@@ -844,7 +844,7 @@ industry:
 
 # docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#costs
 costs:
-  year: 2030
+  year: 2040
   version: v0.10.0
   social_discountrate: 0.02
   fill_values:
@@ -860,19 +860,23 @@ costs:
   # capital_cost:
   #   onwind: 500
   marginal_cost:
-    solar: 0.01
+    CCGT: 48
+    solar: 0.50
     onwind: 0.015
     offwind: 0.015
-    hydro: 0.
-    H2: 0.
-    electrolysis: 0.
-    fuel cell: 0.
-    battery: 0.
-    battery inverter: 0.
+    hydro: 0.0
+    H2: 0.0
+    electrolysis: 0.0
+    fuel cell: 0.0
+    battery: 0.0
+    battery inverter: 0.0
   emission_prices:
     enable: false
-    co2: 0.
+    co2: 0.0
     co2_monthly_prices: false
+
+
+
 
 # docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#clustering
 clustering:
@@ -919,12 +923,7 @@ solving:
     rolling_horizon: false
     seed: 123
     custom_extra_functionality: "../data/custom_extra_functionality.py"
-    modularity:
-      enable: true
-      nom_mod:
-        AC: 400
-        CCGT: 400
-        DC: 500
+
     
     # io_api: "direct"  # Increases performance but only supported for the highs and gurobi solvers
     # options that go into the optimize function
@@ -932,7 +931,7 @@ solving:
     min_iterations: 2
     max_iterations: 3
     transmission_losses: 2
-    linearized_unit_commitment: false
+    linearized_unit_commitment: true
     horizon: 365
     post_discretization:
       enable: false

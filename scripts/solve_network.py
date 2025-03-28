@@ -522,6 +522,7 @@ def prepare_network(
         n.lines["s_nom_mod"] = modularity["nom_mod"]["AC"]
         n.generators.loc[n.generators["carrier"] == "CCGT", "p_nom_mod"] = modularity["nom_mod"]["CCGT"]
         n.links.loc[n.links["carrier"] == "DC", "p_nom_mod"] = modularity["nom_mod"]["DC"]
+        n.generators.loc[n.generators["carrier"] == "nuclear", "p_nom_mod"] = modularity["nom_mod"]["nuclear"]
 
         
         

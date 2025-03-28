@@ -21,7 +21,7 @@ remote:
 # docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#run
 run:
   prefix: ""
-  name: "it6"
+  name: "import"
   scenarios:
     enable: false
     file: config/italy_2025/scenarios.yaml
@@ -44,11 +44,10 @@ scenario:
   # - c1.25
   clusters:
   - 6
-  #- 39
   # - 128
   # - 256
   opts:
-  - 6h
+  - 1h
   sector_opts:
   - ''
   planning_horizons:
@@ -59,7 +58,7 @@ scenario:
 
 # docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#countries
 # countries: ['AL', 'AT', 'BA', 'BE', 'BG', 'CH', 'CZ', 'DE', 'DK', 'EE', 'ES', 'FI', 'FR', 'GB', 'GR', 'HR', 'HU', 'IE', 'IT', 'LT', 'LU', 'LV', 'ME', 'MK', 'NL', 'NO', 'PL', 'PT', 'RO', 'RS', 'SE', 'SI', 'SK', 'XK']
-countries: ['IT']
+countries: ['IT','GR', 'SI','ME']
 
 # docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#snapshots
 snapshots:
@@ -876,7 +875,7 @@ costs:
 
 # docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#clustering
 clustering:
-  focus_weights: false
+  focus_weights: {IT: 0.95}
   simplify_network:
     to_substations: false
     remove_stubs: true
@@ -919,20 +918,13 @@ solving:
     rolling_horizon: false
     seed: 123
     custom_extra_functionality: "../data/custom_extra_functionality.py"
-    modularity:
-      enable: true
-      nom_mod:
-        AC: 400
-        CCGT: 400
-        DC: 500
-    
     # io_api: "direct"  # Increases performance but only supported for the highs and gurobi solvers
     # options that go into the optimize function
     track_iterations: false
     min_iterations: 2
     max_iterations: 3
     transmission_losses: 2
-    linearized_unit_commitment: false
+    linearized_unit_commitment: true
     horizon: 365
     post_discretization:
       enable: false
