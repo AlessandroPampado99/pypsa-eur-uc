@@ -105,16 +105,16 @@ electricity:
     H2: 168
 
   extendable_carriers:
-    Generator: [solar, onwind, SMR_PWR, nuclear]
+    Generator: [solar, onwind, smr_pwr, nuclear]
     StorageUnit: [] # battery, H2
     Store: [battery, H2]
     Link: [] # H2 pipeline
 
   powerplants_filter: (DateOut >= 2024 or DateOut != DateOut) and not (Country == 'Germany' and Fueltype == 'Nuclear')
   custom_powerplants: false
-  everywhere_powerplants: [SMR_PWR, nuclear]
+  everywhere_powerplants: [smr_pwr, nuclear]
 
-  conventional_carriers: [nuclear, SMR_PWR]
+  conventional_carriers: [nuclear, smr_pwr]
   renewable_carriers: [solar, solar-hsat, onwind, offwind-ac, offwind-dc, offwind-float, hydro]
 
   estimate_renewable_capacities:
@@ -367,7 +367,7 @@ pypsa_eur:
   - solar
   - ror
   - nuclear
-  - SMR_PWR
+  - smr_pwr
   StorageUnit:
   - PHS
   - hydro
@@ -869,6 +869,7 @@ costs:
     fuel cell: 0.
     battery: 0.
     battery inverter: 0.
+    nuclear: 40
   emission_prices:
     enable: true
     co2: 100
@@ -1161,6 +1162,8 @@ plotting:
     Nuclear: '#ff8c00'
     Nuclear marginal: '#ff8c00'
     nuclear: '#ff8c00'
+    smr_pwr: '#ff8c00'
+    smr_pwr marginal: '#ff8c00'
     uranium: '#ff8c00'
     # coal
     Coal: '#545454'
