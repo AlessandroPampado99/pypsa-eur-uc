@@ -112,9 +112,9 @@ electricity:
 
   powerplants_filter: (DateOut >= 2024 or DateOut != DateOut) and not (Country == 'Germany' and Fueltype == 'Nuclear')
   custom_powerplants: false
-  everywhere_powerplants: [SMR_PWR,nuclear]
+  everywhere_powerplants: [SMR_PWR, nuclear]
 
-  conventional_carriers: [nuclear, OCGT, CCGT, geothermal, biomass, SMR_PWR]
+  conventional_carriers: [nuclear, SMR_PWR]
   renewable_carriers: [solar, solar-hsat, onwind, offwind-ac, offwind-dc, offwind-float, hydro]
 
   estimate_renewable_capacities:
