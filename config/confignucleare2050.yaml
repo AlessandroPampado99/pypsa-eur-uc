@@ -66,7 +66,7 @@ snapshots:
 # docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#enable
 enable:
   retrieve: auto
-  retrieve_databundle: true
+  retrieve_databundle: false
   retrieve_cost_data: false
   build_cutout: false
   retrieve_cutout: true
@@ -275,7 +275,7 @@ renewable:
 
 # docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#conventional
 conventional:
-  unit_commitment: false
+  unit_commitment: true
   dynamic_fuel_price: false
   nuclear:
     p_max_pu: "data/nuclear_p_max_pu.csv" # float of file name
@@ -340,7 +340,7 @@ load:
   interpolate_limit: 3
   time_shift_for_large_gaps: 1w
   manual_adjustments: true # false
-  scaling_factor: 1.4   #2050
+  scaling_factor: 1   #2050
   fixed_year: 2019 # false or year (e.g. 2013)
   supplement_synthetic: true
   distribution_key:
@@ -869,7 +869,6 @@ costs:
     fuel cell: 0.
     battery: 0.
     battery inverter: 0.
-    nuclear: 40
   emission_prices:
     enable: true
     co2: 100
@@ -933,7 +932,7 @@ solving:
     min_iterations: 2
     max_iterations: 3
     transmission_losses: 2
-    linearized_unit_commitment: true
+    linearized_unit_commitment: false
     horizon: 365
     post_discretization:
       enable: false
@@ -991,6 +990,7 @@ solving:
       Seed: 123
       AggFill: 0
       PreDual: 0
+      MIPGap: 0.02
       GURO_PAR_BARDENSETHRESH: 200
     gurobi-numeric-focus:
       NumericFocus: 3       # Favour numeric stability over speed
