@@ -105,16 +105,16 @@ electricity:
     H2: 168
 
   extendable_carriers:
-    Generator: [solar, onwind, smr_pwr, nuclear]
+    Generator: [solar, onwind, bwr, nu_scale, nuclear]
     StorageUnit: [] # battery, H2
     Store: [battery, H2]
     Link: [] # H2 pipeline
 
   powerplants_filter: (DateOut >= 2024 or DateOut != DateOut) and not (Country == 'Germany' and Fueltype == 'Nuclear')
   custom_powerplants: false
-  everywhere_powerplants: [smr_pwr, nuclear]
+  everywhere_powerplants: [nu_scale, bwr, nuclear]
 
-  conventional_carriers: [nuclear, smr_pwr]
+  conventional_carriers: [nuclear, bwr, nu_scale]
   renewable_carriers: [solar, solar-hsat, onwind, offwind-ac, offwind-dc, offwind-float, hydro]
 
   estimate_renewable_capacities:
@@ -275,7 +275,7 @@ renewable:
 
 # docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#conventional
 conventional:
-  unit_commitment: true
+  unit_commitment: false
   dynamic_fuel_price: false
   nuclear:
     p_max_pu: "data/nuclear_p_max_pu.csv" # float of file name
@@ -368,6 +368,8 @@ pypsa_eur:
   - ror
   - nuclear
   - smr_pwr
+  - nu_scale
+  - bwr
   StorageUnit:
   - PHS
   - hydro
@@ -925,6 +927,9 @@ solving:
         AC: 400
         CCGT: 300
         DC: 500
+        nuclear: 2000
+        bwr: 300
+        nu_scale: 77
 
     # io_api: "direct"  # Increases performance but only supported for the highs and gurobi solvers
     # options that go into the optimize function
@@ -932,7 +937,7 @@ solving:
     min_iterations: 2
     max_iterations: 3
     transmission_losses: 2
-    linearized_unit_commitment: false
+    linearized_unit_commitment: true
     horizon: 365
     post_discretization:
       enable: false
@@ -1162,8 +1167,10 @@ plotting:
     Nuclear: '#ff8c00'
     Nuclear marginal: '#ff8c00'
     nuclear: '#ff8c00'
-    smr_pwr: '#ff8c00'
-    smr_pwr marginal: '#ff8c00'
+    bwr: '#ff8c00'
+    bwr marginal: '#ff8c00'
+    nu_scale: '#ff8c00'
+    nu_scale marginal: '#ff8c00'
     uranium: '#ff8c00'
     # coal
     Coal: '#545454'
