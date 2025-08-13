@@ -517,17 +517,55 @@ def prepare_network(
             n, limit_dict=limit_dict, planning_horizons=planning_horizons
         )
 
-    if solve_opts.get("modularity").get("enable"):
+  #  if solve_opts.get("modularity").get("enable"):
+  #      modularity = solve_opts["modularity"]
+  #      n.lines["s_nom_mod"] = modularity["nom_mod"]["AC"]
+  #      n.links.loc[n.links["carrier"] == "DC", "p_nom_mod"] = modularity["nom_mod"]["DC"]
+  #      n.generators.loc[n.generators["carrier"] == "nuclear", "p_nom_mod"] = modularity["nom_mod"]["nuclear"]
+  #      n.generators.loc[n.generators["carrier"] == "smr_pwr", "p_nom_mod"] = modularity["nom_mod"]["smr_pwr"]
+  #      n.generators.loc[n.generators["carrier"] == "CCGT", "p_nom_mod"] = modularity["nom_mod"]["CCGT"]
+
+
+    if solve_opts.get("modularity", {}).get("enable"):
         modularity = solve_opts["modularity"]
-        n.lines["s_nom_mod"] = modularity["nom_mod"]["AC"]
-        n.generators.loc[n.generators["carrier"] == "CCGT", "p_nom_mod"] = modularity["nom_mod"]["CCGT"]
-        n.links.loc[n.links["carrier"] == "DC", "p_nom_mod"] = modularity["nom_mod"]["DC"]
-        n.generators.loc[n.generators["carrier"] == "nuclear", "p_nom_mod"] = modularity["nom_mod"]["nuclear"]
+
+        component_attrs = {                #nomi codice convertiti in nomi attributi network n
+        "Generator": "generators",
+        "Link": "links",
+        "Line": "lines",
+        "Store": "stores",
+        "StorageUnit": "storage_units"}
+
+        nominal_attrs = {               
+        "Generator": "p_nom",
+        "Link": "p_nom",
+        "Line": "s_nom",
+        "Store": "e_nom",
+        "StorageUnit": "p_nom"}
+
+        for component_name in component_attrs:
+            df = getattr(n, component_attrs[component_name])   #dataframe del componenente
+            nom_attr = nominal_attrs[component_name]    #p_nom o s_nom
+
+            for carrier, mod_val in modularity["nom_mod"].items():
+                if "carrier" in df.columns:
+                    mask = df["carrier"] == carrier
+                    df.loc[mask, f"{nom_attr}_mod"] = mod_val   #scrive il valore della modularità nel nuovo campo
+
 
         
         
 
+        
+        ccgt_mask = n.generators["carrier"] == "CCGT"
+        n.generators.loc[ccgt_mask, "p_nom"] = n.generators.loc[ccgt_mask].apply(lambda row: round(row["p_nom"] / row["p_nom_mod"]) * row["p_nom_mod"],axis=1)
 
+        committable_carriers = ["CCGT"]
+
+        mask = n.generators["carrier"].isin(committable_carriers)
+
+        n.generators.loc[mask, "stand_by_cost"] = ( n.generators.loc[mask, "marginal_cost"] * n.generators.loc[mask, "p_nom_mod"] *(1 / 10) ) # oppure un coefficiente diverso
+        n.generators.loc[mask,"marginal_cost"] =n.generators.loc[mask,"marginal_cost"] - ((n.generators.loc[mask, "stand_by_cost"]) / (n.generators.loc[mask, "p_nom_mod"]) )
 def add_CCL_constraints(
     n: pypsa.Network, config: dict, planning_horizons: str | None
 ) -> None:
@@ -774,25 +812,174 @@ def add_operational_reserve_margin(n, sns, config):
     EPSILON_VRES = reserve_config["epsilon_vres"]
     CONTINGENCY = reserve_config["contingency"]
 
-    # Reserve Variables
+# DEFINIZONE VARIABILI RISERVE PRIMARIA
     n.model.add_variables(
-        0, np.inf, coords=[sns, n.generators.index], name="Generator-r"
+    0, np.inf, coords=[sns, n.generators.index], name="Generator-rp"
     )
-    reserve = n.model["Generator-r"]
-    summed_reserve = reserve.sum("Generator")
+    reserve_g_rp = n.model["Generator-rp"]
+    
+
+    n.model.add_variables(
+    0, np.inf, coords=[sns, n.storage_units.index], name="StorageUnit-rp"
+    ) 
+    reserve_s_rp = n.model["StorageUnit-rp"]
+
+    
+    
+
+
+# DEFINIZONE VARIABILI RISERVE SECONDARIA
+    n.model.add_variables(
+    0, np.inf, coords=[sns, n.generators.index], name="Generator-rs"
+    )
+    reserve_g_rs = n.model["Generator-rs"]
+    
+
+    n.model.add_variables(
+    0, np.inf, coords=[sns, n.storage_units.index], name="StorageUnit-rs"
+    )
+    reserve_s_rs = n.model["StorageUnit-rs"]
+
+
+
+
+# DEFINIZONE VARIABILI RISERVE TERZIARIA
+    n.model.add_variables(
+    0, np.inf, coords=[sns, n.generators.index], name="Generator-rt"
+    )
+    reserve_g_rt = n.model["Generator-rt"]
+    
+
+    n.model.add_variables(
+    0, np.inf, coords=[sns, n.storage_units.index], name="StorageUnit-rt"
+    )
+    reserve_s_rt = n.model["StorageUnit-rt"]
+    
+    
+
+
+       #indici generatori: non generali, sono specifici per la tesi
+    gen_i = n.generators.index
+    ext_modular_i = n.generators.query("p_nom_extendable and p_nom_mod.notnull() and p_nom_mod > 0").index  #SMR che sono committable quindi status si
+    ext_continuos_i = n.generators.query("p_nom_extendable and p_nom_mod == 0").index                                 #rinnovabili non committable quindi no status
+    fix_i = n.generators.query("not p_nom_extendable and p_nom_mod == 0").index                             #solar h-sat
+    fix_modular_i = n.generators.query("not p_nom_extendable and p_nom_mod.notnull() and p_nom_mod > 0").index  #CCGT committable quindi status si
+    
+
+    #indici accumuli 
+    stores_i = n.storage_units.index
+    ext_s_i = n.storage_units.query("p_nom_extendable").index      #idrogeno e batterie
+    fix_s_i = n.storage_units.query("not p_nom_extendable").index  #PHS  hydro
+
+    # per definire coefficienti
+    battery_i = n.storage_units.query('carrier == "battery"').index
+    hydrogen_i = n.storage_units.query('carrier == "H2"').index
+    fix_storage_i = n.storage_units.index.difference(battery_i)
+    
+
+
+
+
+
+    #generatori
+
+    dispatch_g = n.model["Generator-p"]    #variabili di n.model, quindi le operazioni con altre variabili sono accettate solo se esse sono xarray.dataarray
+    reserve_g_rp = n.model["Generator-rp"]
+    reserve_g_rs = n.model["Generator-rs"]
+    reserve_g_rt = n.model["Generator-rt"]
+
+
+    # Dispatch separato, cosi da eliminare le rinnovabili che non possono fornire riserva a salire (unica trattata)
+    dispatch_g_ext_modular = dispatch_g.loc[{"Generator": ext_modular_i}]
+    dispatch_g_fix_modular = dispatch_g.loc[{"Generator": fix_modular_i}]
+
+# Riserva primaria separata
+    reserve_g_rp_ext_modular = reserve_g_rp.loc[{"Generator": ext_modular_i}]
+    reserve_g_rp_fix_modular = reserve_g_rp.loc[{"Generator": fix_modular_i}]
+
+# Riserva secondaria separata
+    reserve_g_rs_ext_modular = reserve_g_rs.loc[{"Generator": ext_modular_i}]
+    reserve_g_rs_fix_modular = reserve_g_rs.loc[{"Generator": fix_modular_i}]
+
+
+# Riserva terziaria separata
+    reserve_g_rt_ext_modular = reserve_g_rt.loc[{"Generator": ext_modular_i}]
+    reserve_g_rt_fix_modular = reserve_g_rt.loc[{"Generator": fix_modular_i}]
+
+
+
+
+   #accumuli
+
+    dispatch_s = n.model["StorageUnit-p_dispatch"]    #dispatch e non store per questo vincolo
+    reserve_s_rp = n.model["StorageUnit-rp"]
+    reserve_s_rs = n.model["StorageUnit-rs"]
+    reserve_s_rt = n.model["StorageUnit-rt"]
+
+    #riserva primaria 
+    reserve_s_rp_bess = reserve_s_rp.loc[{"StorageUnit": battery_i}]
+    reserve_s_rp_H2 = reserve_s_rp.loc[{"StorageUnit": hydrogen_i}]
+    reserve_s_rp_fix = reserve_s_rp.loc[{"StorageUnit": fix_storage_i}]
+
+    #riserva secondaria
+
+    reserve_s_rs_bess = reserve_s_rs.loc[{"StorageUnit": battery_i}]
+    reserve_s_rs_H2 = reserve_s_rs.loc[{"StorageUnit": hydrogen_i}]
+    reserve_s_rs_fix = reserve_s_rs.loc[{"StorageUnit": fix_storage_i}]
+
+    #riserva terziaria(rotante)
+
+    reserve_s_rt_bess = reserve_s_rt.loc[{"StorageUnit": battery_i}]
+    reserve_s_rt_H2 = reserve_s_rt.loc[{"StorageUnit": hydrogen_i}]
+    reserve_s_rt_fix = reserve_s_rt.loc[{"StorageUnit": fix_storage_i}]
+
+
+#totale riserve
+    #primaria
+    summed_reserve_g_rp_nuclear = reserve_g_rp_ext_modular.sum("Generator")
+    summed_reserve_g_rp_gas = reserve_g_rp_fix_modular.sum("Generator")
+    summed_reserve_g_rp = summed_reserve_g_rp_nuclear + summed_reserve_g_rp_gas
+    summed_reserve_s_rp_bess = reserve_s_rp_bess.sum("StorageUnit")
+    summed_reserve_s_rp_H2 = reserve_s_rp_H2.sum("StorageUnit")
+    summed_reserve_s_rp_fix = reserve_s_rp_fix.sum("StorageUnit")
+    summed_reserve_s_rp = summed_reserve_s_rp_bess + summed_reserve_s_rp_fix + summed_reserve_s_rp_H2 
+
+    #secondaria
+    summed_reserve_g_rs_nuclear = reserve_g_rs_ext_modular.sum("Generator")
+    summed_reserve_g_rs_gas = reserve_g_rs_fix_modular.sum("Generator")
+    summed_reserve_g_rs = summed_reserve_g_rs_nuclear + summed_reserve_g_rs_gas
+    summed_reserve_s_rs_bess = reserve_s_rs_bess.sum("StorageUnit")
+    summed_reserve_s_rs_H2 = reserve_s_rs_H2.sum("StorageUnit")
+    summed_reserve_s_rs_fix = reserve_s_rs_fix.sum("StorageUnit")
+    summed_reserve_s_rs = summed_reserve_s_rs_bess + summed_reserve_s_rs_fix + summed_reserve_s_rs_H2 
+
+
+
+    #terziaria
+    summed_reserve_g_rt_nuclear = reserve_g_rt_ext_modular.sum("Generator")
+    summed_reserve_g_rt_gas = reserve_g_rt_fix_modular.sum("Generator")
+    summed_reserve_g_rt = summed_reserve_g_rt_nuclear + summed_reserve_g_rt_gas
+    summed_reserve_s_rt_bess = reserve_s_rt_bess.sum("StorageUnit")
+    summed_reserve_s_rt_H2 = reserve_s_rt_H2.sum("StorageUnit")
+    summed_reserve_s_rt_fix = reserve_s_rt_fix.sum("StorageUnit")
+    summed_reserve_s_rt = summed_reserve_s_rt_bess + summed_reserve_s_rt_fix + summed_reserve_s_rt_H2 
+    
+
+
+
 
     # Share of extendable renewable capacities
-    ext_i = n.generators.query("p_nom_extendable").index
-    vres_i = n.generators_t.p_max_pu.columns
+    ext_i = n.generators.query("p_nom_extendable").index                        #estendibili, quindi tutti , non solo rinnovabili
+    vres_i = n.generators_t.p_max_pu.columns                                    #rinnovabili, quindi potenziale variabile
     if not ext_i.empty and not vres_i.empty:
-        capacity_factor = n.generators_t.p_max_pu[vres_i.intersection(ext_i)]
+        capacity_factor = n.generators_t.p_max_pu[vres_i.intersection(ext_i)]   #: un DataFrame con il profilo temporale di produzione possibile (da 0 a 1) per ogni generatore.
         p_nom_vres = (
             n.model["Generator-p_nom"]
             .loc[vres_i.intersection(ext_i)]
             .rename({"Generator-ext": "Generator"})
         )
-        lhs = summed_reserve + (
-            p_nom_vres * (-EPSILON_VRES * xr.DataArray(capacity_factor))
+        lhs_rp = summed_reserve_g_rp + summed_reserve_s_rp + (                #parte sx, ottimizzabile
+        p_nom_vres * (-EPSILON_VRES * xr.DataArray(capacity_factor))
         ).sum("Generator")
 
         # Total demand per t
@@ -806,30 +993,199 @@ def add_operational_reserve_margin(n, sns, config):
         # Right-hand-side
         rhs = EPSILON_LOAD * demand + EPSILON_VRES * potential + CONTINGENCY
 
-        n.model.add_constraints(lhs >= rhs, name="reserve_margin")
+        n.model.add_constraints(lhs_rp >= rhs, name="reserve_margin")    #vincolo sulla riserva primaria. Corretta allocazione della riserva minima
 
-    # additional constraint that capacity is not exceeded
-    gen_i = n.generators.index
-    ext_i = n.generators.query("p_nom_extendable").index
-    fix_i = n.generators.query("not p_nom_extendable").index
+    
 
-    dispatch = n.model["Generator-p"]
-    reserve = n.model["Generator-r"]
 
-    capacity_variable = n.model["Generator-p_nom"].rename(
+
+
+    
+    
+
+    capacity_variable_g = n.model["Generator-p_nom"].rename(       #variabile da ottimizzare
         {"Generator-ext": "Generator"}
     )
-    capacity_fixed = n.generators.p_nom[fix_i]
 
-    p_max_pu = get_as_dense(n, "Generator", "p_max_pu")
-
-    lhs = dispatch + reserve - capacity_variable * xr.DataArray(p_max_pu[ext_i])
-
-    rhs = (p_max_pu[fix_i] * capacity_fixed).reindex(columns=gen_i, fill_value=0)
-
-    n.model.add_constraints(lhs <= rhs, name="Generator-p-reserve-upper")
+    
+    capacity_fixed_g = n.generators.p_nom                        #variabile da non ottimizzare
 
 
+    capacity_variable_s = n.model["StorageUnit-p_nom"].rename(
+        {"StorageUnit-ext": "StorageUnit"}
+
+        )
+
+    capacity_fixed_s = n.storage_units.p_nom
+
+
+  
+    p_max_pu_g = get_as_dense(n, "Generator", "p_max_pu")
+    p_max_pu_s = get_as_dense(n, "StorageUnit", "p_max_pu")
+    p_min_pu_g = get_as_dense(n, "Generator", "p_min_pu")         #i generatori convenzionali possono lavorare tra un massimo e un minimo tecnico
+
+
+    status = n.model["Generator-status"].rename({"Generator-com":"Generator"})  #unit_commitment
+
+     #Limite 98.5% sulla potenza attiva dei generatori convenzionali
+
+
+
+# Unione generatori termoelettrici
+    thermal_i = ext_modular_i.union(fix_modular_i)    #ccgt + smr con gli indici
+
+# limitazione riserva primaria erogabile, tramite coefficienti calibrati da articolo
+    dispatch_thermal = dispatch_g.loc[{"Generator": thermal_i}]
+    k_p_g = 0.015    #generatori convenzionali termoelettrici
+
+    k_p_bess = 1     #batterie
+    k_p_H2 = 0.3  #idrogeno
+    k_p_fix = 0.25
+
+
+    n.model.add_constraints(summed_reserve_g_rp_nuclear <= k_p_g * 300 * status.loc[{"Generator": ext_modular_i}]  , name="primary_reserve_margin_nuclear")
+    n.model.add_constraints(summed_reserve_g_rp_gas <= k_p_g * ((xr.DataArray(capacity_fixed_g[fix_modular_i]) * status.loc[{"Generator": fix_modular_i}]))  , name="primary_reserve_margin_gas")
+    n.model.add_constraints(summed_reserve_s_rp_bess <= k_p_bess * capacity_variable_s.loc[{"StorageUnit": battery_i}], name = "primary_reserve_margin_bess" )
+    n.model.add_constraints(summed_reserve_s_rp_fix <= k_p_fix * capacity_fixed_s[fix_storage_i], name = "primary_reserve_margin_storage_fix" )
+    n.model.add_constraints(summed_reserve_s_rp_H2 <= k_p_H2 * capacity_variable_s.loc[{"StorageUnit": hydrogen_i}], name = "primary_reserve_margin_H2" )
+
+    
+    
+
+
+
+
+
+    
+
+
+# Riserva secondaria richiesta 
+    L_max = demand.resample("3h").max()
+    #L_max = demand.max()   #daily_max = demand.resample("1D").max()  faccio un valore unico per tutto l'anno (periodo di riferimento) o creo un vettore di valori per snapshot.
+    R_sec = np.sqrt(10 * L_max + 150**2) - 150     #relazione presa dal Gatta
+
+
+    #per tener conto solo dei generatori convenzionali che possono fornire riserva secondaria e terziaria
+    
+    reserve_g_rs = reserve_g_rs_ext_modular + reserve_g_rs_fix_modular
+    reserve_g_rt = reserve_g_rt_ext_modular + reserve_g_rt_fix_modular
+    
+   
+
+    
+    
+# Requisito minimo totale di riserva secondaria
+    total_rs = reserve_g_rs.sum("Generator") + reserve_s_rs.sum("StorageUnit")
+    n.model.add_constraints(total_rs >= R_sec, name="reserve_margin_secondary")
+
+
+    #vincolo sulla riserva secondaria massima erogabile tenendo conto delle rampe
+    # limitazione riserva primaria erogabile, tramite coefficienti calibrati da articolo
+    dispatch_thermal = dispatch_g.loc[{"Generator": thermal_i}]
+    k_s_g = 0.15   #generatori convenzionali termoelettrici
+
+    k_s_bess = 1     #batterie
+    k_s_H2 = 1 #idrogeno
+    k_s_fix = 1
+
+    n.model.add_constraints(summed_reserve_g_rs_nuclear <= k_s_g * 300 * status.loc[{"Generator": ext_modular_i}]  , name="secondary_reserve_margin_nuclear")
+    n.model.add_constraints(summed_reserve_g_rs_gas <= k_s_g * ((xr.DataArray(capacity_fixed_g[fix_modular_i]) * status.loc[{"Generator": fix_modular_i}]))  , name="secondary_reserve_margin_gas")
+    n.model.add_constraints(summed_reserve_s_rs_bess <= k_s_bess * capacity_variable_s.loc[{"StorageUnit": battery_i}], name = "secondary_reserve_margin_bess" )
+    n.model.add_constraints(summed_reserve_s_rs_fix <= k_s_fix * capacity_fixed_s[fix_storage_i], name = "secondary_reserve_margin_storage_fix" )
+    n.model.add_constraints(summed_reserve_s_rs_H2 <= k_s_H2 * capacity_variable_s.loc[{"StorageUnit": hydrogen_i}], name = "secondary_reserve_margin_H2" )
+
+    
+
+
+
+# Requisito minimo totale di riserva terziaria
+
+
+  
+   # Carico attuale e precedente
+   
+
+    P_t = demand
+    P_t_minus1 = demand.shift(1)
+
+# Load ramp percentuale con modulo
+    load_ramp = (P_t - P_t_minus1).abs() / P_t
+
+# Rimuovi NaN iniziale (primo snapshot non ha precedente)
+    load_ramp = load_ramp.fillna(1)
+
+    R_t = (load_ramp +1) * R_sec
+
+
+    total_rt = reserve_g_rt.sum("Generator") + reserve_s_rt.sum("StorageUnit")
+    n.model.add_constraints(total_rt >= R_t, name="reserve_margin_tertiary")
+
+    k_t_g = 1   #generatori convenzionali termoelettrici
+
+    k_t_bess = 1     #batterie
+    k_t_H2 = 1 #idrogeno
+    k_t_fix = 1
+
+    n.model.add_constraints(summed_reserve_g_rt_nuclear <= k_t_g * 300 * status.loc[{"Generator": ext_modular_i}]  , name="tertiary_reserve_margin_nuclear")
+    n.model.add_constraints(summed_reserve_g_rt_gas <= k_t_g * ((xr.DataArray(capacity_fixed_g[fix_modular_i]) * status.loc[{"Generator": fix_modular_i}]))  , name="tertiary_reserve_margin_gas")
+    n.model.add_constraints(summed_reserve_s_rt_bess <= k_t_bess * capacity_variable_s.loc[{"StorageUnit": battery_i}], name = "tertiary_reserve_margin_bess" )
+    n.model.add_constraints(summed_reserve_s_rt_fix <= k_t_fix * capacity_fixed_s[fix_storage_i], name = "tertiary_reserve_margin_storage_fix" )
+    n.model.add_constraints(summed_reserve_s_rt_H2 <= k_t_H2 * capacity_variable_s.loc[{"StorageUnit": hydrogen_i}], name = "tertiary_reserve_margin_H2" )
+
+
+    
+    
+
+    
+
+
+   #vincolo generale che la riserva TOTALE sia sempre inferiore al delta tra Pmax (e Pmin per i generatori convenzionali) e dispacciamento
+
+    #generatori sx
+    lhs_modular_max = (300 * xr.DataArray(p_max_pu_g[ext_modular_i],dims=["snapshot", "Generator"]))  * status.loc[{"Generator": ext_modular_i}]  #SMR, dà errore con status . quadratic expression
+    lhs_modular_min = (300 * xr.DataArray(p_min_pu_g[ext_modular_i],dims=["snapshot", "Generator"]))  * status.loc[{"Generator": ext_modular_i}]  #SMR, dà errore con status . quadratic expression
+
+    lhs_continuos = (capacity_variable_g.loc[{"Generator" : ext_continuos_i}] * xr.DataArray(p_max_pu_g[ext_continuos_i],dims=["snapshot", "Generator"]))  #rinnovabili, non committable, ma espandibili, non possono fornire a salire!!!
+
+    #uguale a prima per la secondaria
+    reserve_g_rp = reserve_g_rp_ext_modular + reserve_g_rp_fix_modular
+    dispatch_g = dispatch_g_ext_modular + dispatch_g_fix_modular
+
+    #accumuli sx
+    lhs_s_ext = capacity_variable_s.loc[{"StorageUnit": ext_s_i}] * xr.DataArray(p_max_pu_s[ext_s_i],dims = ["snapshot", "StorageUnit"])  #quindi idrogeno e batterie
+    
+    #vincolo sinistro per i generatori
+    lhs_g = dispatch_g + reserve_g_rp + reserve_g_rs + reserve_g_rt - (lhs_modular_max - lhs_modular_min) -lhs_continuos
+    #vincolo sinistro per gli accumuli
+    lhs_s = dispatch_s  + reserve_s_rp + reserve_s_rs + reserve_s_rt - lhs_s_ext
+
+    #generatori dx
+    rhs_modular_max = ((xr.DataArray(capacity_fixed_g[fix_modular_i]) * xr.DataArray(p_max_pu_g[fix_modular_i],dims = ["snapshot","Generator"])) * status.loc[{"Generator": fix_modular_i}])#CCGT committable si ma non soggetto ad ottimizzazione 
+    rhs_modular_min = ((xr.DataArray(capacity_fixed_g[fix_modular_i]) * xr.DataArray(p_min_pu_g[fix_modular_i],dims = ["snapshot","Generator"])) * status.loc[{"Generator": fix_modular_i}])#CCGT committable si ma non soggetto ad ottimizzazione 
+
+    #rhs_continuos = (xr.DataArray(capacity_fixed_g[fix_i]) * xr.DataArray(p_max_pu[fix_i],dims = ["snapshot","Generator"]))
+
+    #rhs_continuos = (p_max_pu_g[fix_i] * capacity_fixed_g[fix_i]).reindex(columns=fix_i, fill_value=0)
+
+
+    #accumuli dx
+    rhs_s_fix = (p_max_pu_s[fix_s_i] * capacity_fixed_s[fix_s_i]).reindex(columns=fix_s_i, fill_value=0)
+
+    
+
+    #vincolo destro generatori
+    rhs_g =  rhs_modular_max - rhs_modular_min 
+    #vincolo destro per gli accumuli
+    rhs_s = rhs_s_fix
+    
+    
+
+    n.model.add_constraints(lhs_g <= rhs_g, name="Generator-p-reserve-upper")
+    n.model.add_constraints(lhs_s<=rhs_s, name = "Storage-p-reserve-upper")
+    
+    
+
+    
 def add_battery_constraints(n):
     """
     Add constraint ensuring that charger = discharger, i.e.
@@ -1159,6 +1515,7 @@ def solve_network(
     # add to network for extra_functionality
     n.config = config
     n.params = params
+    
 
     if rolling_horizon and rule_name == "solve_operations_network":
         kwargs["horizon"] = cf_solving.get("horizon", 365)
@@ -1184,23 +1541,24 @@ def solve_network(
                 f"Solving status '{status}' with termination condition '{condition}'"
             )
         check_objective_value(n, solving)
-
+        
+        
     if "infeasible" in condition:
         labels = n.model.compute_infeasibilities()
         logger.info(f"Labels:\n{labels}")
         n.model.print_infeasibilities()
         raise RuntimeError("Solving status 'infeasible'")
-
-
+    
+   
 # %%
 if __name__ == "__main__":
     if "snakemake" not in globals():
         from _helpers import mock_snakemake
 
         snakemake = mock_snakemake(
-            "solve_sector_network_perfect",
-            configfiles="../config/test/config.perfect.yaml",
-            opts="",
+            "solve_network",
+            configfiles="./config/configitaly2040.yaml",
+            opts="6h",
             clusters="5",
             ll="v1.0",
             sector_opts="",
@@ -1216,6 +1574,10 @@ if __name__ == "__main__":
 
     n = pypsa.Network(snakemake.input.network)
     planning_horizons = snakemake.wildcards.get("planning_horizons", None)
+
+    
+
+
 
     prepare_network(
         n,
@@ -1242,7 +1604,7 @@ if __name__ == "__main__":
         )
 
     logger.info(f"Maximum memory usage: {mem.mem_usage}")
-
+    
     n.meta = dict(snakemake.config, **dict(wildcards=dict(snakemake.wildcards)))
     n.export_to_netcdf(snakemake.output.network)
 

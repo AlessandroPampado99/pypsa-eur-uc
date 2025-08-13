@@ -21,7 +21,7 @@ remote:
 # docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#run
 run:
   prefix: ""
-  name: "Italy2019validation"
+  name: "Italy2040nuclear"
   scenarios:
     enable: false
     file: config/scenarios.yaml
@@ -39,13 +39,14 @@ foresight: overnight
 # Wildcard docs in https://pypsa-eur.readthedocs.io/en/latest/wildcards.html
 scenario:
   clusters:
- # - 6
+ #  - 5
   - 10
+ # - 15
  # - 39
  # - 128
  # - 256
   opts:
-  - '1h'
+  - '3h'
   sector_opts:
   - ''
   planning_horizons:
@@ -66,10 +67,10 @@ snapshots:
 # docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#enable
 enable:
   retrieve: auto
-  retrieve_databundle: true
-  retrieve_cost_data: true
+  retrieve_databundle: false
+  retrieve_cost_data: false
   build_cutout: false
-  retrieve_cutout: false
+  retrieve_cutout: true
   custom_busmap: false
   drop_leap_day: true
 
@@ -90,31 +91,31 @@ electricity:
   osm-prebuilt-version: 0.6
   gaslimit_enable: false
   gaslimit: false
-  co2limit_enable: false
-  co2limit: 7.75e+7
+  co2limit_enable: true
+  co2limit: 25.3e+6
   co2base: 1.487e+9
 
   operational_reserve:
-    activate: false
+    activate: true
     epsilon_load: 0.02
     epsilon_vres: 0.02
-    contingency: 4000
+    contingency: 360
 
   max_hours:
     battery: 6
     H2: 168
 
   extendable_carriers:
-    Generator: []
-    StorageUnit: [] # battery, H2
-    Store: [battery, H2]
+    Generator: [solar, onwind, offwind-ac, offwind-dc,  offwind-float, smr_pwr]
+    StorageUnit: [battery, H2] # battery, H2
+    Store: []
     Link: [] # H2 pipeline
 
   powerplants_filter: (DateOut >= 2019 or DateOut != DateOut) and not (Country == 'Germany' and Fueltype == 'Nuclear')
   custom_powerplants: false
-  everywhere_powerplants: []
+  everywhere_powerplants: [smr_pwr]
 
-  conventional_carriers: [nuclear, oil, OCGT, CCGT, coal, lignite, geothermal, biomass]
+  conventional_carriers: [CCGT, smr_pwr]
   renewable_carriers: [solar, solar-hsat, onwind, offwind-ac, offwind-dc, offwind-float, hydro]
 
   estimate_renewable_capacities:
@@ -161,7 +162,7 @@ renewable:
       turbine: Vestas_V112_3MW
       smooth: false
       add_cutout_windspeed: true
-    capacity_per_sqkm: 3
+    capacity_per_sqkm: 0.7
     # correction_factor: 0.93
     corine:
       grid_codes: [12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 31, 32]
@@ -181,7 +182,7 @@ renewable:
       turbine: NREL_ReferenceTurbine_2020ATB_5.5MW
       smooth: false
       add_cutout_windspeed: true
-    capacity_per_sqkm: 2
+    capacity_per_sqkm: 1.2
     correction_factor: 0.8855
     corine: [44, 255]
     luisa: false # [0, 5230]
@@ -218,7 +219,7 @@ renewable:
       smooth: false
       add_cutout_windspeed: true
     # ScholzPhd Tab 4.3.1: 10MW/km^2
-    capacity_per_sqkm: 2
+    capacity_per_sqkm: 1.5
     correction_factor: 0.8855
     # proxy for wake losses
     # from 10.1016/j.energy.2018.08.153
@@ -239,7 +240,7 @@ renewable:
       orientation:
         slope: 35.
         azimuth: 180.
-    capacity_per_sqkm: 5.1
+    capacity_per_sqkm: 1.2
     # correction_factor: 0.854337
     corine: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 26, 31, 32]
     luisa: false # [1111, 1121, 1122, 1123, 1130, 1210, 1221, 1222, 1230, 1241, 1242, 1310, 1320, 1330, 1410, 1421, 1422, 2110, 2120, 2130, 2210, 2220, 2230, 2310, 2410, 2420, 3210, 3320, 3330]
@@ -275,7 +276,7 @@ renewable:
 
 # docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#conventional
 conventional:
-  unit_commitment: false
+  unit_commitment: true
   dynamic_fuel_price: false
   nuclear:
     p_max_pu: "data/nuclear_p_max_pu.csv" # float of file name
@@ -340,7 +341,7 @@ load:
   interpolate_limit: 3
   time_shift_for_large_gaps: 1w
   manual_adjustments: true # false
-  scaling_factor: 1.0
+  scaling_factor: 1.4   #2040
   fixed_year: 2019 # false or year (e.g. 2013)
   supplement_synthetic: true
   distribution_key:
@@ -367,6 +368,7 @@ pypsa_eur:
   - solar
   - ror
   - nuclear
+  - smr_pwr
   StorageUnit:
   - PHS
   - hydro
@@ -843,7 +845,7 @@ industry:
 
 # docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#costs
 costs:
-  year: 2020
+  year: 2040
   version: v0.10.1
   social_discountrate: 0.02
   fill_values:
@@ -860,7 +862,7 @@ costs:
   #   onwind: 500
   marginal_cost:
     solar: 0.01
-    onwind: 0.015
+    onwind: 0.01
     offwind: 0.015
     hydro: 0.
     H2: 0.
@@ -869,8 +871,8 @@ costs:
     battery: 0.
     battery inverter: 0.
   emission_prices:
-    enable: false
-    co2: 0.
+    enable: true
+    co2: 100
     co2_monthly_prices: false
 
 # docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#clustering
@@ -919,17 +921,20 @@ solving:
     seed: 123
     custom_extra_functionality: "../data/custom_extra_functionality.py"
     modularity:
-      enable: false
+      enable: true
       nom_mod:
+        AC: 500
+        DC: 500
+        smr_pwr: 300
         CCGT: 400
-        nuclear: 2000
+
     # io_api: "direct"  # Increases performance but only supported for the highs and gurobi solvers
     # options that go into the optimize function
     track_iterations: false
     min_iterations: 2
     max_iterations: 3
     transmission_losses: 2
-    linearized_unit_commitment: true
+    linearized_unit_commitment: false
     horizon: 365
     post_discretization:
       enable: false
@@ -987,6 +992,8 @@ solving:
       Seed: 123
       AggFill: 0
       PreDual: 0
+      MIPGap: 0.02
+      TimeLimit: 86400
       GURO_PAR_BARDENSETHRESH: 200
     gurobi-numeric-focus:
       NumericFocus: 3       # Favour numeric stability over speed
@@ -1158,6 +1165,8 @@ plotting:
     Nuclear: '#ff8c00'
     Nuclear marginal: '#ff8c00'
     nuclear: '#ff8c00'
+    smr_pwr: '#ff8c00'
+    smr_pwr marginal: '#ff8c00'
     uranium: '#ff8c00'
     # coal
     Coal: '#545454'
