@@ -527,6 +527,16 @@ def prepare_network(
 
 
     if solve_opts.get("modularity", {}).get("enable"):
+  #  if solve_opts.get("modularity").get("enable"):
+  #      modularity = solve_opts["modularity"]
+  #      n.lines["s_nom_mod"] = modularity["nom_mod"]["AC"]
+  #      n.links.loc[n.links["carrier"] == "DC", "p_nom_mod"] = modularity["nom_mod"]["DC"]
+  #      n.generators.loc[n.generators["carrier"] == "nuclear", "p_nom_mod"] = modularity["nom_mod"]["nuclear"]
+  #      n.generators.loc[n.generators["carrier"] == "smr_pwr", "p_nom_mod"] = modularity["nom_mod"]["smr_pwr"]
+  #      n.generators.loc[n.generators["carrier"] == "CCGT", "p_nom_mod"] = modularity["nom_mod"]["CCGT"]
+
+
+    if solve_opts.get("modularity", {}).get("enable"):
         modularity = solve_opts["modularity"]
 <<<<<<< HEAD
 
