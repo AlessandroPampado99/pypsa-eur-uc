@@ -528,6 +528,7 @@ def prepare_network(
 
     if solve_opts.get("modularity", {}).get("enable"):
         modularity = solve_opts["modularity"]
+<<<<<<< HEAD
 
         component_attrs = {                #nomi codice convertiti in nomi attributi network n
         "Generator": "generators",
@@ -552,6 +553,16 @@ def prepare_network(
                     mask = df["carrier"] == carrier
                     df.loc[mask, f"{nom_attr}_mod"] = mod_val   #scrive il valore della modularità nel nuovo campo
 
+=======
+        n.lines["s_nom_mod"] = modularity["nom_mod"]["AC"]
+        n.generators.loc[n.generators["carrier"] == "CCGT", "p_nom_mod"] = modularity["nom_mod"]["CCGT"]
+        n.links.loc[n.links["carrier"] == "DC", "p_nom_mod"] = modularity["nom_mod"]["DC"]
+        n.generators.loc[n.generators["carrier"] == "nuclear", "p_nom_mod"] = modularity["nom_mod"]["nuclear"]
+        n.generators.loc[n.generators["carrier"] == "bwr", "p_nom_mod"] = modularity["nom_mod"]["bwr"]
+        n.generators.loc[n.generators["carrier"] == "nu_scale", "p_nom_mod"] = modularity["nom_mod"]["nu_scale"]
+        
+        
+>>>>>>> 4796a6faf70bd44e7e69df036a8ea61dd6742f8c
 
         
         
